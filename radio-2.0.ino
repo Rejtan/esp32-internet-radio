@@ -87,7 +87,7 @@ void setup() {
   WiFi.mode(WIFI_STA);  // explicitly set wifi mode
 
 
-  wm.setClass("invert");
+  wm.setClass("invert"); //comment out to disable dark mode
 
   if (EEPROM.read(2) == 1) {
 
@@ -359,7 +359,7 @@ void menu2() {
     }
 
     if ((int32_t)encoder.getCount() < 0) {
-      encoder.setCount(3);  // so the station stays in 1-4
+      encoder.setCount(3);  // so the station stays in 0-3
     }
     if ((int32_t)encoder.getCount() > 3) {
       encoder.setCount(0);

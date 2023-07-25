@@ -8,17 +8,18 @@
 #include <EEPROM.h>
 #include <WiFiManager.h>  //WiFiManager by tzapu
 #include <WiFiUdp.h>
-#include <NTPClient.h>
-#include <TimeLib.h>
+//#include <NTPClient.h>
+//#include <TimeLib.h>
 
 
-WiFiUDP ntpUDP;                                                  //needed for clock
-NTPClient timeClient(ntpUDP, "tempus1.gum.gov.pl", 3600, 1000);  //defining time zone
 
-char Time[] = "00:00:00";      // time format
-char Date[] = "00/00/2000r.";  // date format
-byte last_second, second_, minute_, hour_, day_, month_;
-int year_;
+//WiFiUDP ntpUDP;                                                  //needed for clock
+//NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", 7200, 1000);  //defining time zone
+
+//char Time[] = "00:00";      // time format
+//char Date[] = "00/00/2000r.";  // date format
+//byte last_minute, second_, minute_, hour_, day_, month_;
+//int year_;
 
 
 #define TFT_CS 5
@@ -46,21 +47,21 @@ ESP32Encoder encoder;  // defining encoder with ESP32Encoder lib
 
 int enkoderold = 0;  //to know when ecoder has moved
 
-int wybormenu = 0;  // decides which menu is chosen
+short wybormenu = 0;  // decides which menu is chosen
 
-int powrot = 0;  // remembers which menu was selected and comes back to it
+short powrot = 0;  // remembers which menu was selected and comes back to it
 
-int raz = 0;  // to do stuff in submenus once
+bool raz = 0;  // to do stuff in submenus once
 
-int volume = 10;  // volume
+short volume = 10;  // volume
 
-int btnState = digitalRead(SW);  // state of button
+bool btnState = digitalRead(SW);  // state of button
 
 unsigned long lastButtonPress = 0;  // time since the last button press
 
-int stacja = 0;  //station selected
+short stacja = 0;  //station selected
 
-int stacjaold = EEPROM.read(1);  //used for knowing when to change the station
+short stacjaold = EEPROM.read(1);  //used for knowing when to change the station
 
 string tmp;  //temporary string for converting the station
 
@@ -73,6 +74,8 @@ WiFiManager wm;  //WiFiManager, Local intialization
 
 void setup() {
 
+
+Serial.begin(115200);
 
   EEPROM.begin(EEPROM_SIZE);
   volume = EEPROM.read(0);  //start eeprom and set volume and station from it
@@ -128,24 +131,14 @@ void setup() {
   // show logo
   bootlogo();
 
-
-  //Task on second core for only the audio
-  TaskHandle_t mp3stream;
-
-  xTaskCreatePinnedToCore(
-    radiostream,        /* Task function. */
-    "RadioStreamCore1", /* name of task. */
-    10000,              /* Stack size of task */
-    NULL,               /* parameter of the task */
-    1,                  /* priority of the task */
-    &mp3stream,         /* Task handle to keep track of created task */
-    0);                 /* pin task to core 0 */
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void loop() {
 
+radiostream();
 
 
 
@@ -161,7 +154,7 @@ void loop() {
     menu5();
   }
 
-  zegar();  //updates the clock once every while
+  //zegar();  //updates the clock once every while
 }
 ///////////////////////////////////////////////////////////////////////////////////////
 void bootlogo() {
@@ -309,10 +302,10 @@ void menu1() {
     tft.setTextSize(3);
     tft.println((int32_t)encoder.getCount());
     if ((int32_t)encoder.getCount() < 0) {
-      encoder.setCount(0);  // so the volume stays in 1-100
+      encoder.setCount(0);  // so the volume stays in 1-22
     }
-    if ((int32_t)encoder.getCount() > 100) {
-      encoder.setCount(100);
+    if ((int32_t)encoder.getCount() > 22) {
+      encoder.setCount(22);
     }
     volume = (int32_t)encoder.getCount();
     audio.setVolume(volume);
@@ -390,9 +383,13 @@ void menu3() {
       tft.setTextSize(2);
       tft.println("Data");
       tft.setCursor(0, 30);
-      tft.println(Date);
-      switch(weekday()) {
+     // tft.println(Date);
+     // switch(weekday()) {
 
+  /*case 0:
+      tft.setCursor(10, 60);
+      tft.println("Niedziela");
+    break;
   case 1:
       tft.setCursor(10, 60);
       tft.println("Poniedziałek");
@@ -417,10 +414,7 @@ void menu3() {
       tft.setCursor(10, 60);
       tft.println("Sobota");
     break;
-  case 7:
-      tft.setCursor(10, 60);
-      tft.println("Niedziela");
-    break;
+ */
     }
 
 
@@ -429,7 +423,7 @@ void menu3() {
     podmienmenu();
   
 }
-}
+
 
 void menu4() {
   if (wybormenu == 4) {
@@ -525,12 +519,12 @@ void rstmenu() {
   tft.println(" RST WiFi  ");
 }
 
-void zegar() {
+/*void zegar() {
   timeClient.update();
   unsigned long unix_epoch = timeClient.getEpochTime();  // Get Unix epoch time from the NTP server
 
-  second_ = second(unix_epoch);
-  if (last_second != second_) {
+  minute_ = minute(unix_epoch);
+  if (last_minute != minute_) {
 
 
     minute_ = minute(unix_epoch);
@@ -540,9 +534,6 @@ void zegar() {
     year_ = year(unix_epoch);
 
 
-
-    Time[7] = second_ % 10 + 48;
-    Time[6] = second_ / 10 + 48;
     Time[4] = minute_ % 10 + 48;
     Time[3] = minute_ / 10 + 48;
     Time[1] = hour_ % 10 + 48;
@@ -564,14 +555,14 @@ void zegar() {
     tft.setTextColor(ST77XX_WHITE, BLUE);
     tft.setTextSize(2);
     tft.println(Time);
-    last_second = second_;
+    last_minute = minute_;
   }
 }
+*/
 
+void radiostream() {
 
-void radiostream(void* pvParameters) {
-
-  for (;;) {
+  
     if (stacjaold != stacja) {
       audio.setVolume(0);
       audio.connecttohost(tmp.c_str());
@@ -580,5 +571,9 @@ void radiostream(void* pvParameters) {
       stacjaold = stacja;
     }
     audio.loop();
-  }
+  
+}
+
+void audio_info(const char *info){
+    Serial.print("info        "); Serial.println(info);
 }
